@@ -1,0 +1,176 @@
+name: Build Installers
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: WeatherApp-Linux
+            artifact_pattern: dist/WeatherApp
+          - os: windows-latest
+            platform: windows
+            artifact_name: WeatherApp-Windows
+            artifact_pattern: dist/WeatherApp
+          - os: macos-latest
+            platform: macos
+            artifact_name: WeatherApp-macOS
+            artifact_pattern: dist/WeatherApp.app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          python -m PyInstaller --clean --noconfirm weather_app.spec
+
+      - name: Create DMG (macOS only)
+        if: matrix.platform == 'macos'
+        run: |
+          hdiutil create -volname WeatherApp -srcfolder dist/WeatherApp.app -ov -format UDZO dist/WeatherApp-1.0.0-macOS.dmg
+          echo "DMG created successfully"
+
+      - name: Install NSIS (Windows only)
+        if: matrix.platform == 'windows'
+        run: |
+          choco install nsis -y
+        shell: pwsh
+
+      - name: Create Windows Installer
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          # Create NSIS script
+          $nsisScript = @"
+          !define APP_NAME "WeatherApp"
+          !define APP_VERSION "1.0.0"
+          !define PUBLISHER "Weather App"
+          !define DIST_DIR "dist\WeatherApp"
+
+          Name "`${APP_NAME}"
+          OutFile "dist\WeatherApp-1.0.0-Windows-Setup.exe"
+          InstallDir "`$PROGRAMFILES64\`${APP_NAME}"
+          RequestExecutionLevel admin
+
+          Page directory
+          Page instfiles
+
+          Section "Install"
+              SetOutPath "`$INSTDIR"
+              File /r "`${DIST_DIR}\*.*"
+
+              CreateDirectory "`$SMPROGRAMS\`${APP_NAME}"
+              CreateShortCut "`$SMPROGRAMS\`${APP_NAME}\`${APP_NAME}.lnk" "`$INSTDIR\WeatherApp.exe"
+              CreateShortCut "`$DESKTOP\`${APP_NAME}.lnk" "`$INSTDIR\WeatherApp.exe"
+
+              WriteUninstaller "`$INSTDIR\Uninstall.exe"
+          SectionEnd
+
+          Section "Uninstall"
+              Delete "`$INSTDIR\Uninstall.exe"
+              RMDir /r "`$INSTDIR"
+              Delete "`$SMPROGRAMS\`${APP_NAME}\`${APP_NAME}.lnk"
+              Delete "`$DESKTOP\`${APP_NAME}.lnk"
+              RMDir "`$SMPROGRAMS\`${APP_NAME}"
+          SectionEnd
+          "@
+
+          Set-Content -Path "installer.nsi" -Value $nsisScript
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+          echo "Windows installer created successfully"
+
+      - name: Create Linux Archive
+        if: matrix.platform == 'linux'
+        run: |
+          cd dist
+          tar -czf WeatherApp-1.0.0-Linux.tar.gz WeatherApp
+          echo "Linux archive created successfully"
+
+      - name: Upload Artifacts - App Bundle/Directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_pattern }}
+          retention-days: 30
+
+      - name: Upload Artifacts - Installer (macOS)
+        if: matrix.platform == 'macos'
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeatherApp-macOS-DMG
+          path: dist/WeatherApp-1.0.0-macOS.dmg
+          retention-days: 30
+
+      - name: Upload Artifacts - Installer (Windows)
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeatherApp-Windows-Setup
+          path: dist/WeatherApp-1.0.0-Windows-Setup.exe
+          retention-days: 30
+
+      - name: Upload Artifacts - Archive (Linux)
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeatherApp-Linux-Archive
+          path: dist/WeatherApp-1.0.0-Linux.tar.gz
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -R artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/WeatherApp-macOS-DMG/*.dmg
+            artifacts/WeatherApp-Windows-Setup/*.exe
+            artifacts/WeatherApp-Linux-Archive/*.tar.gz
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -28,7 +28,18 @@ MANIFEST
 
 # PyInstaller
 *.manifest
-*.spec
+# Note: weather_app.spec is tracked as part of build config
+
+# Installer packages
+*.dmg
+*.exe
+*.msi
+*.tar.gz
+*.zip
+*.deb
+*.rpm
+*.AppImage
+installer.nsi
 
 # Installer logs
 pip-log.txt
