@@ -16,18 +16,16 @@ This document explains how to build installer packages for Weather App on macOS,
 ### All Platforms
 
 - Python 3.10 or higher
-- Virtual environment (recommended)
-- All dependencies from `requirements.txt`
+- [uv](https://docs.astral.sh/uv/) - Fast Python package installer and resolver
+- All dependencies managed via `pyproject.toml`
 
 ```bash
-# Create and activate virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # macOS/Linux
-# or
-.venv\Scripts\activate     # Windows
+# Install uv (if not already installed)
+pip install uv
 
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies and set up virtual environment
+# uv will automatically create .venv and install all dependencies
+uv sync
 ```
 
 ### Platform-Specific Requirements
@@ -54,14 +52,11 @@ pip install -r requirements.txt
 The easiest way to build is using the provided `build.py` script:
 
 ```bash
-# Activate virtual environment
-source .venv/bin/activate
-
-# Build for current platform
-python build.py
+# Build for current platform (uv will use the project's virtual environment)
+uv run python build.py
 
 # Clean build artifacts
-python build.py --clean
+uv run python build.py --clean
 ```
 
 ### Manual Build
@@ -69,11 +64,8 @@ python build.py --clean
 You can also build manually using PyInstaller:
 
 ```bash
-# Activate virtual environment
-source .venv/bin/activate
-
-# Run PyInstaller with the spec file
-python -m PyInstaller --clean --noconfirm weather_app.spec
+# Run PyInstaller with the spec file using uv
+uv run python -m PyInstaller --clean --noconfirm weather_app.spec
 ```
 
 Build output will be in:
@@ -87,7 +79,7 @@ Build output will be in:
 The build script creates a `.app` bundle and a DMG installer:
 
 ```bash
-python build.py
+uv run python build.py
 ```
 
 Output:
@@ -119,7 +111,7 @@ xcrun notarytool submit dist/WeatherApp-1.0.0-macOS.dmg \
 The build script creates an executable and optionally an installer:
 
 ```bash
-python build.py
+uv run python build.py
 ```
 
 Output:
@@ -144,7 +136,7 @@ signtool sign /f certificate.pfx /p password /tr http://timestamp.digicert.com \
 The build script creates a standalone binary:
 
 ```bash
-python build.py
+uv run python build.py
 ```
 
 Output:
@@ -288,7 +280,7 @@ Icons are stored in `icons/`:
 
 To regenerate icons:
 ```bash
-python icons/generate_icons.py
+uv run python icons/generate_icons.py
 ```
 
 ## Troubleshooting
@@ -297,9 +289,8 @@ python icons/generate_icons.py
 
 **Issue: "PyInstaller not found"**
 ```bash
-# Ensure you're in the virtual environment
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-pip install pyinstaller
+# PyInstaller is defined in pyproject.toml, so just sync dependencies
+uv sync
 ```
 
 **Issue: "Module not found" errors at runtime**
@@ -339,7 +330,7 @@ For debugging issues, create a debug build:
 # Edit weather_app.spec and set:
 # debug=True, console=True
 
-python -m PyInstaller --clean --noconfirm weather_app.spec
+uv run python -m PyInstaller --clean --noconfirm weather_app.spec
 
 # Run and check console output
 ./dist/WeatherApp/WeatherApp  # Linux/macOS
@@ -350,7 +341,7 @@ dist\WeatherApp\WeatherApp.exe  # Windows
 
 Enable PyInstaller logging:
 ```bash
-python -m PyInstaller --log-level DEBUG --clean weather_app.spec
+uv run python -m PyInstaller --log-level DEBUG --clean weather_app.spec
 ```
 
 ## Build Best Practices
@@ -359,7 +350,7 @@ python -m PyInstaller --log-level DEBUG --clean weather_app.spec
 2. **Test on clean systems** - Use VMs to verify no system dependencies
 3. **Version consistently** - Update version in `build.py` and `weather_app.spec`
 4. **Code sign** - Sign executables for distribution (especially macOS and Windows)
-5. **Clean before release builds** - Run `python build.py --clean` first
+5. **Clean before release builds** - Run `uv run python build.py --clean` first
 6. **Document changes** - Update this file when changing the build process
 
 ## Resources

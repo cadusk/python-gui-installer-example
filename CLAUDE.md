@@ -15,23 +15,15 @@ This is a PyQt6-based weather application that provides a GUI for fetching curre
 
 ### Initial Setup
 ```bash
-# Create virtual environment
-python3 -m venv .venv
-
-# Activate virtual environment
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies and set up virtual environment
+# uv will automatically create .venv and install dependencies
+uv sync
 ```
 
 ### Running the Application
 ```bash
-# Ensure you're in the virtual environment first
-source .venv/bin/activate
-
-# Run the application
-python weather_app.py
+# Run the application using uv
+uv run python weather_app.py
 ```
 
 ## Architecture

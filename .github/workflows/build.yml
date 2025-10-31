@@ -38,16 +38,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
+
+      - name: Install uv
+        run: pip install uv
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: uv sync
 
       - name: Build with PyInstaller
         run: |
-          python -m PyInstaller --clean --noconfirm weather_app.spec
+          uv run python -m PyInstaller --clean --noconfirm weather_app.spec
 
       - name: Create DMG (macOS only)
         if: matrix.platform == 'macos'

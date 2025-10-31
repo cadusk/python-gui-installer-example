@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generate placeholder icons for the Weather App in multiple formats.
-Requires: pip install pillow
+Requires: Pillow (add to pyproject.toml dependencies or run: uv add pillow)
 """
 from PIL import Image, ImageDraw, ImageFont
 import os
